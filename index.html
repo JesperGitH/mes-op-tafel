@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Met het Mes op Tafel - Digital Edition</title>
+    <!-- Bibliotheken -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --navy: #001f3f;
+            --navy-dark: #001a35;
+            --navy-light: #002b5c;
+            --gold: #d4af37;
+            --white: #ffffff;
+            --red: #ff4136;
+            --green: #2ecc40;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--navy);
+            color: var(--white);
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        .font-serif {
+            font-family: 'Playfair Display', serif;
+        }
+
+        /* Layout */
+        .screen {
+            display: none;
+            min-height: 100vh;
+            flex-direction: column;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        /* UI Elements */
+        .btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            font-family: 'Inter', sans-serif;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-gold {
+            background-color: var(--gold);
+            color: var(--navy);
+        }
+
+        .btn-gold:hover {
+            background-color: var(--white);
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            border: 2px solid var(--gold);
+            color: var(--gold);
+        }
+
+        .btn-outline:hover {
+            background-color: var(--gold);
+            color: var(--navy);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        input {
+            padding: 1rem;
+            background: transparent;
+            border: 2px solid var(--gold);
+            border-radius: 8px;
+            color: var(--white);
+            font-size: 1.2rem;
+            width: 100%;
+            outline: none;
+        }
+
+        /* Host Styles */
+        header {
+            padding: 1.5rem;
+            border-bottom: 4px solid var(--gold);
+            background-color: var(--navy-dark);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .host-main {
+            flex-grow: 1;
+            display: flex;
+        }
+
+        .sidebar {
+            width: 320px;
+            border-right: 1px solid rgba(212, 175, 55, 0.2);
+            padding: 1.5rem;
+            background-color: rgba(0, 26, 53, 0.5);
+            overflow-y: auto;
+        }
+
+        .game-board {
+            flex-grow: 1;
+            padding: 3rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            text-align: center;
+        }
+
+        .pot-display {
+            position: absolute;
+            top: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .pot-label {
+            color: var(--gold);
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.5em;
+            margin-bottom: 0.5rem;
+        }
+
+        .pot-value {
+            font-size: 4rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .player-card {
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            background-color: var(--navy-light);
+            margin-bottom: 1rem;
+            transition: all 0.3s;
+        }
+
+        .player-card.folded {
+            border-color: #900;
+            background-color: rgba(153, 0, 0, 0.2);
+            opacity: 0.7;
+        }
+
+        .player-card .ready-badge {
+            color: var(--green);
+            font-size: 0.7rem;
+            display: flex;
+            align-items: center;
+            gap: 0.2rem;
+        }
+
+        /* Player Styles */
+        .player-header {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .player-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        /* Animations */
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Specific Views */
+        #qr-container {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            border: 4px solid var(--gold);
+            display: inline-block;
+        }
+
+        .category-title {
+            font-size: 6rem;
+            padding: 2rem 4rem;
+            border-top: 2px solid var(--gold);
+            border-bottom: 2px solid var(--gold);
+            margin: 2rem 0;
+        }
+
+        .question-text {
+            font-size: 4rem;
+            line-height: 1.2;
+            font-style: italic;
+            margin-bottom: 3rem;
+            max-width: 1000px;
+        }
+
+        .reveal-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .reveal-card {
+            background: var(--navy-light);
+            padding: 2rem;
+            border-radius: 12px;
+            border: 2px solid rgba(212, 175, 55, 0.3);
+        }
+
+        .reveal-answer {
+            font-size: 2.5rem;
+            color: var(--gold);
+            font-style: italic;
+            margin: 1rem 0;
+        }
+
+        /* Mobile Adjustments */
+        @media (max-width: 768px) {
+            .category-title { font-size: 3rem; }
+            .question-text { font-size: 2rem; }
+            .pot-value { font-size: 2.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SELECT MODE SCREEN -->
+    <div id="screen-select" class="screen active items-center justify-center">
+        <div style="max-width: 450px; width: 100%; border: 4px solid var(--gold); padding: 3rem; border-radius: 12px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
+            <h1 class="font-serif" style="font-size: 2.5rem; color: var(--gold); margin-bottom: 2rem; text-transform: uppercase; letter-spacing: 0.1em;">Met het Mes op Tafel</h1>
+            <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                <button onclick="startHost()" class="btn btn-gold" style="font-size: 1.2rem; padding: 1.5rem;">Host Spel (Laptop)</button>
+                <div style="position: relative; margin: 1rem 0;">
+                    <hr style="border: 0; border-top: 1px solid rgba(212, 175, 55, 0.3);">
+                    <span style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--navy); padding: 0 1rem; color: var(--gold); font-size: 0.8rem;">OF</span>
+                </div>
+                <button onclick="showPlayerJoin()" class="btn btn-outline" style="font-size: 1.2rem; padding: 1.5rem;">Speel Mee (Smartphone)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PLAYER JOIN SCREEN -->
+    <div id="screen-player-join" class="screen items-center justify-center p-4">
+        <div style="max-width: 400px; width: 100%; display: flex; flex-direction: column; gap: 1.5rem;">
+            <h2 class="font-serif text-center" style="font-size: 2rem; color: var(--gold);">Verbinden</h2>
+            <input type="text" id="player-name-input" placeholder="Jouw Naam">
+            <input type="text" id="room-id-input" placeholder="Kamer ID">
+            <button onclick="joinGame()" class="btn btn-gold">Verbinden</button>
+            <button onclick="showSelect()" class="btn" style="color: var(--gold); text-decoration: underline;">Terug</button>
+        </div>
+    </div>
+
+    <!-- PLAYER GAME SCREEN -->
+    <div id="screen-player-game" class="screen">
+        <div class="player-header">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <div style="width: 10px; height: 10px; background: var(--green); border-radius: 50%;"></div>
+                <span id="p-display-name" style="color: var(--gold); font-weight: bold;"></span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span style="color: var(--gold);">Fiches:</span>
+                <span id="p-display-chips" style="font-weight: bold;">1000</span>
+            </div>
+        </div>
+        <div id="player-view-content" class="player-content">
+            <!-- Dynamische content voor speler -->
+        </div>
+    </div>
+
+    <!-- HOST SCREEN -->
+    <div id="screen-host" class="screen">
+        <header>
+            <div>
+                <h1 class="font-serif" style="font-size: 1.8rem; color: var(--gold); text-transform: uppercase;">Met het Mes op Tafel</h1>
+                <p style="font-size: 0.6rem; color: rgba(212, 175, 55, 0.6); letter-spacing: 0.3em; text-transform: uppercase;">Digital Multiplayer Edition</p>
+            </div>
+            <div style="text-align: right;">
+                <p style="font-size: 0.7rem; color: var(--gold); text-transform: uppercase; opacity: 0.8;">Kamer ID</p>
+                <p id="host-peer-id" style="font-size: 1.5rem; font-family: monospace; font-weight: bold;">Laden...</p>
+            </div>
+        </header>
+        <div class="host-main">
+            <aside class="sidebar">
+                <h2 style="color: var(--gold); text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.2em; margin-bottom: 1.5rem;">Spelers (<span id="player-count">0</span>)</h2>
+                <button onclick="resetScores()" class="btn" style="width: 100%; margin-bottom: 1.5rem; font-size: 0.7rem; border: 1px solid rgba(255,0,0,0.3); color: var(--red);">Reset Scores</button>
+                <div id="player-list">
+                    <!-- Spelerslijst -->
+                </div>
+            </aside>
+            <section id="host-game-view" class="game-board">
+                <!-- Dynamische content voor host -->
+            </section>
+        </div>
+        <footer style="padding: 1rem; background: var(--navy-dark); border-top: 1px solid rgba(212, 175, 55, 0.1); display: flex; justify-content: space-between; font-size: 0.6rem; color: rgba(212, 175, 55, 0.3); text-transform: uppercase; letter-spacing: 0.1em;">
+            <span>&copy; 2026 Met het Mes op Tafel</span>
+            <span>Peer-to-Peer Powered by PeerJS</span>
+        </footer>
+    </div>
+
+    <script>
+        // --- CONFIG & DATA ---
+        const QUESTIONS = [
+            { id: 1, category: 'Geschiedenis', question: 'In welk jaar begon de Tweede Wereldoorlog?', answer: '1939' },
+            { id: 2, category: 'Geschiedenis', question: 'Wie was de eerste president van de Verenigde Staten?', answer: 'George Washington' },
+            { id: 3, category: 'Sport', question: 'Welk land won het WK voetbal in 2010?', answer: 'Spanje' },
+            { id: 4, category: 'Sport', question: 'Hoeveel Grand Slam titels heeft Roger Federer gewonnen?', answer: '20' },
+            { id: 5, category: 'Kunst', question: 'Wie schilderde de Nachtwacht?', answer: 'Rembrandt van Rijn' },
+            { id: 6, category: 'Kunst', question: 'In welke stad staat het Louvre museum?', answer: 'Parijs' },
+            { id: 7, category: 'Wetenschap', question: 'Wat is het chemische symbool voor goud?', answer: 'Au' },
+            { id: 8, category: 'Wetenschap', question: 'Wie ontdekte de zwaartekracht?', answer: 'Isaac Newton' },
+            { id: 9, category: 'Geschiedenis', question: 'Welke Franse koningin werd onthoofd tijdens de Franse Revolutie?', answer: 'Marie Antoinette' },
+            { id: 10, category: 'Sport', question: 'Wat is de maximale score bij een 180-beurt bij darten?', answer: '180' },
+            { id: 11, category: 'Kunst', question: 'Wie schilderde de Mona Lisa?', answer: 'Leonardo da Vinci' },
+            { id: 12, category: 'Wetenschap', question: 'Wat is de verste planeet van de zon in ons zonnestelsel?', answer: 'Neptunus' },
+            { id: 13, category: 'Geschiedenis', question: 'Wie was de leader van de Sovjet-Unie tijdens de Tweede Wereldoorlog?', answer: 'Jozef Stalin' },
+            { id: 14, category: 'Sport', question: 'Welke wielrenner won 5 keer de Tour de France (en behield ze)?', answer: 'Eddy Merckx' },
+            { id: 15, category: 'Kunst', question: 'Van welke kunststroming was Salvador Dalí een bekende vertegenwoordiger?', answer: 'Surrealisme' },
+            { id: 16, category: 'Wetenschap', question: 'Hoeveel botten heeft een volwassen menselijk lichaam gemiddeld?', answer: '206' },
+            { id: 17, category: 'Geschiedenis', question: 'In welk jaar viel de Berlijnse Muur?', answer: '1989' },
+            { id: 18, category: 'Sport', question: 'Welke sport wordt gespeeld op Wimbledon?', answer: 'Tennis' },
+            { id: 19, category: 'Kunst', question: 'Wie sneed zijn eigen oor af?', answer: 'Vincent van Gogh' },
+            { id: 20, category: 'Wetenschap', question: 'Wat is de snelheid van het licht in vacuüm (ongeveer)?', answer: '300.000 km/s' }
+        ];
+
+        let state = {
+            mode: 'SELECT',
+            peer: null,
+            peerId: '',
+            connections: {}, 
+            hostConn: null, 
+            players: [],
+            gameState: 'START',
+            pot: 0,
+            currentQuestion: null,
+            highestBet: 0,
+            playerName: ''
+        };
+
+        // --- NAVIGATION ---
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        function showSelect() { showScreen('screen-select'); }
+        function showPlayerJoin() { showScreen('screen-player-join'); }
+
+        // --- HOST LOGIC ---
+        function startHost() {
+            state.mode = 'HOST';
+            showScreen('screen-host');
+            initPeerHost();
+            renderHostView();
+        }
+
+        function initPeerHost() {
+            if (state.peer) state.peer.destroy();
+            state.peer = new Peer();
+            
+            state.peer.on('open', (id) => {
+                console.log('Host Peer ID:', id);
+                state.peerId = id;
+                document.getElementById('host-peer-id').innerText = id;
+                renderHostView();
+            });
+
+            state.peer.on('connection', (conn) => {
+                console.log('Nieuwe verbinding van:', conn.peer);
+                conn.on('open', () => {
+                    conn.on('data', (data) => handleHostIncomingData(conn, data));
+                });
+                conn.on('close', () => {
+                    console.log('Verbinding gesloten:', conn.peer);
+                    state.players = state.players.filter(p => p.id !== conn.peer);
+                    delete state.connections[conn.peer];
+                    updateHostUI();
+                });
+            });
+
+            state.peer.on('error', (err) => {
+                console.error('PeerJS Host Error:', err);
+                alert('Fout bij hosten: ' + err.type);
+            });
+        }
+
+        function handleHostIncomingData(conn, data) {
+            console.log('Host ontving data:', data);
+            if (data.type === 'JOIN') {
+                const savedScores = JSON.parse(localStorage.getItem('mes_op_tafel_scores') || '[]');
+                const saved = savedScores.find(s => s.name === data.name);
+                
+                const newPlayer = {
+                    id: conn.peer,
+                    name: data.name,
+                    chips: saved ? saved.chips : 1000,
+                    currentBet: 0,
+                    answer: '',
+                    hasFolded: false,
+                    isReady: false
+                };
+                state.players.push(newPlayer);
+                state.connections[conn.peer] = conn;
+                broadcastState();
+                updateHostUI();
+            } else if (data.type === 'ANSWER') {
+                const p = state.players.find(pl => pl.id === conn.peer);
+                if (p) {
+                    p.answer = data.answer;
+                    p.isReady = true;
+                    broadcastState();
+                    updateHostUI();
+                }
+            } else if (data.type === 'BET') {
+                handleBet(conn.peer, data.amount, data.action);
+            }
+        }
+
+        function handleBet(playerId, amount, action) {
+            const p = state.players.find(pl => pl.id === playerId);
+            if (!p) return;
+
+            if (action === 'FOLD') {
+                p.hasFolded = true;
+            } else {
+                p.chips -= amount;
+                p.currentBet += amount;
+                state.pot += amount;
+                if (p.currentBet > state.highestBet) state.highestBet = p.currentBet;
+            }
+
+            broadcastState();
+            updateHostUI();
+            renderHostView();
+        }
+
+        function broadcastState() {
+            const syncData = {
+                type: 'SYNC',
+                players: state.players,
+                gameState: state.gameState,
+                pot: state.pot,
+                currentQuestion: state.currentQuestion,
+                highestBet: state.highestBet
+            };
+            Object.values(state.connections).forEach(conn => {
+                if (conn.open) conn.send(syncData);
+            });
+        }
+
+        function updateHostUI() {
+            document.getElementById('player-count').innerText = state.players.length;
+            const list = document.getElementById('player-list');
+            list.innerHTML = '';
+            state.players.forEach(p => {
+                const card = document.createElement('div');
+                card.className = `player-card ${p.hasFolded ? 'folded' : ''}`;
+                card.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <span style="font-weight: bold;">${p.name}</span>
+                        <span style="color: var(--gold); font-family: monospace;">${p.chips}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.6rem; color: rgba(212, 175, 55, 0.6);">
+                        <span>Inzet: ${p.currentBet}</span>
+                        ${p.isReady ? '<span class="ready-badge">✓ Klaar</span>' : ''}
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        function renderHostView() {
+            const view = document.getElementById('host-game-view');
+            view.innerHTML = '';
+
+            if (state.gameState === 'START') {
+                view.innerHTML = `
+                    <div class="fade-in">
+                        <div id="qr-container"></div>
+                        <p style="font-size: 1.5rem; color: var(--gold); margin-bottom: 2rem; font-style: italic;">Scan de code of gebruik ID om mee te spelen</p>
+                        <button onclick="startGame()" class="btn btn-gold" ${state.players.length === 0 ? 'disabled' : ''} style="font-size: 1.5rem; padding: 1rem 3rem; border-radius: 50px;">Start het Spel</button>
+                    </div>
+                `;
+                if (state.peerId) {
+                    // Genereer een volledige URL voor de QR code
+                    const joinUrl = window.location.origin + window.location.pathname + '?room=' + state.peerId;
+                    const qr = new QRious({
+                        value: joinUrl,
+                        size: 250
+                    });
+                    const img = document.createElement('img');
+                    img.src = qr.toDataURL();
+                    document.getElementById('qr-container').appendChild(img);
+                }
+            } else if (state.gameState === 'CATEGORY') {
+                view.innerHTML = `
+                    <div class="fade-in">
+                        <h3 style="text-transform: uppercase; letter-spacing: 0.5em; color: var(--gold);">De Categorie is...</h3>
+                        <h2 class="font-serif category-title">${state.currentQuestion.category}</h2>
+                        <button onclick="changeGameState('ANTE')" class="btn btn-outline">Naar de Inzet</button>
+                    </div>
+                `;
+            } else if (state.gameState === 'ANTE') {
+                view.innerHTML = `
+                    <div class="fade-in">
+                        <div class="pot-display">
+                            <div class="pot-label">Centrale Pot</div>
+                            <div class="pot-value">${state.pot}</div>
+                        </div>
+                        <h2 class="font-serif" style="font-size: 4rem; font-style: italic; margin-top: 4rem;">Plaats uw eerste inzet...</h2>
+                        <button onclick="changeGameState('QUESTION')" class="btn btn-gold" style="margin-top: 3rem;">De Vraag Stellen</button>
+                    </div>
+                `;
+            } else if (state.gameState === 'QUESTION') {
+                view.innerHTML = `
+                    <div class="fade-in">
+                        <div class="pot-display">
+                            <div class="pot-label">Centrale Pot</div>
+                            <div class="pot-value">${state.pot}</div>
+                        </div>
+                        <h2 class="font-serif question-text">"${state.currentQuestion.question}"</h2>
+                        <div style="margin-bottom: 2rem;">
+                            <p style="color: var(--gold); text-transform: uppercase; font-size: 0.8rem;">Antwoorden binnen</p>
+                            <p style="font-size: 3rem; font-weight: bold;">${state.players.filter(p => p.isReady).length} / ${state.players.length}</p>
+                        </div>
+                        <button onclick="changeGameState('BIDDING')" class="btn btn-gold">Start het Bieden</button>
+                    </div>
+                `;
+            } else if (state.gameState === 'BIDDING') {
+                view.innerHTML = `
+                    <div class="fade-in">
+                        <div class="pot-display">
+                            <div class="pot-label">Centrale Pot</div>
+                            <div class="pot-value">${state.pot}</div>
+                        </div>
+                        <h2 class="font-serif" style="font-size: 4rem; font-style: italic; margin-top: 4rem;">Wie durft er te verhogen?</h2>
+                        <div style="background: var(--navy-light); padding: 2rem; border-radius: 12px; border: 2px solid var(--gold); margin-top: 2rem; display: inline-block;">
+                            <p style="color: var(--gold); text-transform: uppercase; font-size: 0.8rem;">Hoogste inzet op tafel</p>
+                            <p style="font-size: 3rem; font-weight: bold;">${state.highestBet}</p>
+                        </div>
+                        <div style="margin-top: 3rem;">
+                            <button onclick="changeGameState('REVEAL')" class="btn btn-gold">Onthulling</button>
+                        </div>
+                    </div>
+                `;
+            } else if (state.gameState === 'REVEAL') {
+                let cardsHtml = '';
+                state.players.filter(p => !p.hasFolded).forEach(p => {
+                    cardsHtml += `
+                        <div class="reveal-card">
+                            <h3 style="font-size: 1.5rem; margin-bottom: 1rem;">${p.name}</h3>
+                            <p class="font-serif reveal-answer">"${p.answer || '...'}"</p>
+                            <button onclick="awardPot(['${p.id}'])" class="btn btn-gold" style="font-size: 0.8rem;">Winnaar</button>
+                        </div>
+                    `;
+                });
+                view.innerHTML = `
+                    <div class="fade-in" style="width: 100%;">
+                        <div style="margin-bottom: 3rem;">
+                            <h3 style="color: var(--gold); text-transform: uppercase; letter-spacing: 0.3em;">Het goede antwoord is:</h3>
+                            <h2 class="font-serif" style="font-size: 5rem; margin-top: 1rem;">${state.currentQuestion.answer}</h2>
+                        </div>
+                        <div class="reveal-grid">${cardsHtml}</div>
+                        <div style="margin-top: 3rem;">
+                            <button onclick="awardPot(state.players.map(p => p.id))" class="btn btn-outline" style="font-size: 0.8rem;">Deel de Pot</button>
+                        </div>
+                    </div>
+                `;
+            } else if (state.gameState === 'ROUND_END') {
+                view.innerHTML = `
+                    <div class="fade-in">
+                        <h2 class="font-serif" style="font-size: 5rem; color: var(--gold); margin-bottom: 2rem;">Ronde Voorbij</h2>
+                        <p style="font-size: 1.5rem; font-style: italic; margin-bottom: 3rem;">Bereid je voor op de volgende categorie...</p>
+                        <button onclick="startGame()" class="btn btn-gold" style="font-size: 1.5rem; padding: 1rem 3rem; border-radius: 50px;">Volgende Ronde</button>
+                    </div>
+                `;
+            }
+        }
+
+        function startGame() {
+            state.gameState = 'CATEGORY';
+            state.currentQuestion = QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)];
+            state.pot = 0;
+            state.highestBet = 0;
+            state.players.forEach(p => {
+                p.currentBet = 0;
+                p.answer = '';
+                p.hasFolded = false;
+                p.isReady = false;
+            });
+            broadcastState();
+            updateHostUI();
+            renderHostView();
+        }
+
+        function changeGameState(newState) {
+            state.gameState = newState;
+            broadcastState();
+            renderHostView();
+        }
+
+        function awardPot(winners) {
+            const share = Math.floor(state.pot / winners.length);
+            state.players.forEach(p => {
+                if (winners.includes(p.id)) p.chips += share;
+            });
+            state.gameState = 'ROUND_END';
+            saveScores();
+            broadcastState();
+            updateHostUI();
+            renderHostView();
+        }
+
+        function saveScores() {
+            const scores = state.players.map(p => ({ name: p.name, chips: p.chips }));
+            localStorage.setItem('mes_op_tafel_scores', JSON.stringify(scores));
+        }
+
+        function resetScores() {
+            if (confirm('Weet je zeker dat je alle scores wilt wissen?')) {
+                localStorage.removeItem('mes_op_tafel_scores');
+                alert('Scores gereset voor de volgende keer.');
+            }
+        }
+
+        // --- PLAYER LOGIC ---
+        function joinGame() {
+            state.playerName = document.getElementById('player-name-input').value.trim();
+            const roomId = document.getElementById('room-id-input').value.trim();
+            if (!state.playerName || !roomId) return alert('Vul naam en kamer ID in');
+
+            console.log('Speler probeert te verbinden met:', roomId);
+            if (state.peer) state.peer.destroy();
+            state.peer = new Peer();
+            
+            state.peer.on('open', (id) => {
+                console.log('Speler Peer ID:', id);
+                state.hostConn = state.peer.connect(roomId);
+                
+                state.hostConn.on('open', () => {
+                    console.log('Verbonden met host!');
+                    showScreen('screen-player-game');
+                    document.getElementById('p-display-name').innerText = state.playerName;
+                    state.hostConn.send({ type: 'JOIN', name: state.playerName });
+                });
+
+                state.hostConn.on('data', handlePlayerIncomingData);
+                
+                state.hostConn.on('error', (err) => {
+                    console.error('Verbindingsfout:', err);
+                    alert('Kon niet verbinden met de host. Controleer de Kamer ID.');
+                });
+
+                state.hostConn.on('close', () => {
+                    console.log('Host verbinding gesloten');
+                    alert('Verbinding met host verbroken');
+                    showSelect();
+                });
+            });
+
+            state.peer.on('error', (err) => {
+                console.error('PeerJS Speler Error:', err);
+                if (err.type === 'peer-disconnected') return;
+                alert('Fout bij verbinden: ' + err.type);
+            });
+        }
+
+        function handlePlayerIncomingData(data) {
+            console.log('Speler ontving data:', data);
+            if (data.type === 'SYNC') {
+                state.players = data.players;
+                state.gameState = data.gameState;
+                state.pot = data.pot;
+                state.currentQuestion = data.currentQuestion;
+                state.highestBet = data.highestBet;
+                
+                const me = state.players.find(p => p.id === state.peer.id);
+                if (me) document.getElementById('p-display-chips').innerText = me.chips;
+                
+                renderPlayerView(me);
+            }
+        }
+
+        function renderPlayerView(me) {
+            const view = document.getElementById('player-view-content');
+            if (!view) return;
+            view.innerHTML = '';
+
+            if (!me) {
+                view.innerHTML = `<p class="fade-in">Wachten op synchronisatie...</p>`;
+                return;
+            }
+
+            if (state.gameState === 'START' || state.gameState === 'LOBBY') {
+                view.innerHTML = `<p class="fade-in" style="font-style: italic; font-size: 1.2rem;">Wachten tot de host start...</p>`;
+            } else if (state.gameState === 'CATEGORY') {
+                view.innerHTML = `
+                    <div class="fade-in">
+                        <p style="text-transform: uppercase; font-size: 0.8rem; color: var(--gold); letter-spacing: 0.2em;">Categorie</p>
+                        <h2 style="font-size: 2.5rem; font-weight: bold; margin-top: 1rem;">${state.currentQuestion ? state.currentQuestion.category : '...'}</h2>
+                    </div>
+                `;
+            } else if (state.gameState === 'ANTE') {
+                view.innerHTML = `
+                    <div class="fade-in" style="width: 100%;">
+                        <p style="margin-bottom: 2rem; font-size: 1.2rem;">Zet je fiches in voor de start!</p>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <button onclick="sendBet(10, 'ANTE')" class="btn btn-gold" style="padding: 2rem; font-size: 1.5rem;">10</button>
+                            <button onclick="sendBet(20, 'ANTE')" class="btn btn-gold" style="padding: 2rem; font-size: 1.5rem;">20</button>
+                            <button onclick="sendBet(50, 'ANTE')" class="btn btn-gold" style="padding: 2rem; font-size: 1.5rem;">50</button>
+                            <button onclick="sendBet(100, 'ANTE')" class="btn btn-gold" style="padding: 2rem; font-size: 1.5rem;">100</button>
+                        </div>
+                    </div>
+                `;
+            } else if (state.gameState === 'QUESTION') {
+                if (me.isReady) {
+                    view.innerHTML = `<p class="fade-in" style="color: var(--green); font-size: 1.5rem;">✓ Antwoord verzonden!</p>`;
+                } else {
+                    view.innerHTML = `
+                        <div class="fade-in" style="width: 100%;">
+                            <p style="margin-bottom: 1.5rem; font-style: italic;">Typ je antwoord:</p>
+                            <input type="text" id="p-answer-input" placeholder="..." style="text-align: center; margin-bottom: 1.5rem;">
+                            <button onclick="sendAnswer()" class="btn btn-gold" style="width: 100%;">Verzenden</button>
+                        </div>
+                    `;
+                }
+            } else if (state.gameState === 'BIDDING') {
+                if (me.hasFolded) {
+                    view.innerHTML = `<p class="fade-in" style="color: var(--red); font-size: 1.5rem; font-style: italic;">Je hebt gepast.</p>`;
+                } else {
+                    const toCall = state.highestBet - me.currentBet;
+                    view.innerHTML = `
+                        <div class="fade-in" style="width: 100%;">
+                            <div style="background: var(--navy-light); padding: 1rem; border-radius: 8px; margin-bottom: 2rem;">
+                                <p style="font-size: 0.8rem; color: var(--gold);">Hoogste inzet: ${state.highestBet}</p>
+                                <p style="font-size: 0.8rem; color: var(--gold);">Jouw inzet: ${me.currentBet}</p>
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                                <button onclick="sendBet(${toCall}, 'CALL')" class="btn btn-gold" style="padding: 1.5rem; font-size: 1.2rem;">Meegaan (${toCall})</button>
+                                <button onclick="sendBet(50, 'RAISE')" class="btn btn-outline" style="padding: 1.5rem; font-size: 1.2rem;">Verhogen (+50)</button>
+                                <button onclick="sendBet(0, 'FOLD')" class="btn" style="color: var(--red); font-size: 0.8rem;">Passen (Fold)</button>
+                            </div>
+                        </div>
+                    `;
+                }
+            } else if (state.gameState === 'REVEAL' || state.gameState === 'ROUND_END') {
+                view.innerHTML = `<p class="fade-in" style="font-style: italic; font-size: 1.2rem;">Kijk naar het grote scherm!</p>`;
+            }
+        }
+
+        function sendAnswer() {
+            const ans = document.getElementById('p-answer-input').value;
+            if (!ans) return;
+            state.hostConn.send({ type: 'ANSWER', answer: ans });
+        }
+
+        function sendBet(amount, action) {
+            state.hostConn.send({ type: 'BET', amount, action });
+        }
+
+        // --- INITIALIZATION ---
+        window.onload = () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomId = urlParams.get('room');
+            if (roomId) {
+                showPlayerJoin();
+                document.getElementById('room-id-input').value = roomId;
+            }
+        };
+    </script>
+</body>
+</html>
